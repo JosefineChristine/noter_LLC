@@ -1,4 +1,4 @@
-LLC - PRAKTISK EKSAMEN NOTER
+LOW LEVEL C - PRAKTISK EKSAMEN NOTER
 ______________________________________________________
 
 Husk når jeg koder:
@@ -11,9 +11,9 @@ Husk når jeg koder:
 
 
 ###### Filer ######
-c fil har funktioner
-h fil har prototype på funktioner, konstanter og structs
-main kan kalde funktionerne 
+- c fil har funktioner
+- h fil har prototype på funktioner, konstanter og structs (bruges til at dele konstanter, makroer, funktioner og datatyper på tværs af .c-filer)
+- main kan kalde funktionerne 
 
 
 
@@ -43,6 +43,15 @@ long int	long int d;	Større talområde
 ###### Pointers/pointere ######
 Hvis en funktion skal ændre data → brug pointer
 Hvis en funktion kun skal læse data → brug ikke pointer
+
+int age = 21;
+int *pAge = &age;
+
+printf(&age) = 61FE14
+printf(pAge) = 61FE14
+
+printf(age) = 21
+printf(*pAge) = 21
 
 pointer: brug IKKE free
 malloc: huskat bruge free
@@ -136,8 +145,8 @@ changeName(&p1, "Peter");    // passer pointer til funktionen
 - Hvis vi brugte struct Person p uden pointer, ændringer påvirkede kun kopien.
 
 Huske-regler
-- Pointer til struct → brug ->
-- Almindelig struct → brug .
+- Pointer til struct: brug ->
+- Almindelig struct: brug .
 - Returnér pointer, når structen er dynamisk eller stor
 - Send pointer til funktion, når du vil ændre structen direkte
 - Fri heap-memory med free for dynamiske structs
@@ -145,9 +154,11 @@ Huske-regler
 
 
 ###### Arrow operator (. vs ->) #######
-punktum binder stærkere end stjernen, så kan man bruge arrow operator
-Dvs:
+Bruges til medlemsadgang (fx adgang til noget som er i en struct)
 color_ptr->r er det samme som (*color_ptr).r
+
+arrow operator (->): medlemsadgang til en struct gennem en pointer
+dot operator (.): medlemsadgang til en struct
 
 
 struct person_t person; 	// Stack-allokeret struct
@@ -172,6 +183,9 @@ Husk at tjekke for NULL før brug.
 free bruges til at frigive hukommelsen igen.
 Efter free må pointeren ikke bruges længere.
 
+pointer: brug IKKE nødvendigvis free
+malloc: huskat bruge free
+
 
 
 ###### Arrays #######
@@ -186,7 +200,7 @@ int b[5] = {1, 2, 3, 4, 5};
 
 Adgang til elementer:
 a[0] = 10;     // første element
-int x = a[3]; // fjerde element
+int x = a[3];  // fjerde element
 Indeks starter ved 0 og går til size-1
 
 Loope over array
@@ -275,13 +289,15 @@ som i praksis betyder at fejl har værdien 404 //fejl == 404
 
 
 
-
 ###### Strings i C ######
 I C er en string et array af chars, altid nul-termineret (\0).
 char s[10] = "Hej";  // array af 10 chars, s[3] = '\0'
 
 Strings kan også håndteres som pointer til char:
 char *s = "Hej";  // peger på konstant string i read-only memory
+
+"Hej" består faktisk af 4 bytes i hukommelsen:
+'H' 'e' 'j' '\0'
 
 Dynamiske strings
 Alloker på heapen med malloc og kopier:
@@ -297,7 +313,7 @@ I C slutter en streng når der kommer en null-byte
 Strenge har en null-byte til sidst, som i C bruges til at sige nu er strengen slut (tror jeg)
 Så fx strengen "Simon" har 6 og ikke 5
 Strings i C
-char * betyder string, det er fordi der ikke rgitigt er strings i C
+char * betyder string, det er fordi der ikke rigtig er strings i C
 så man skrive fx
 char *first_name;
 
