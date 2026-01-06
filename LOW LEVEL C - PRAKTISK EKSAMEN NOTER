@@ -1,0 +1,422 @@
+LOW LEVEL C - PRAKTISK EKSAMEN NOTER
+______________________________________________________
+
+Husk når jeg koder:
+- if statements i funktioner til at tjekke
+- .h-fil skal have funktionerne (h-filer bliver brugt til at dele konstanter, makroer, funktioner og datatyper på tværs af .c-filer)
+- i main: oprette fx account navn = create_account
+- free
+- at #define findes (makroer) laves i h fil
+
+
+
+###### Filer ######
+c fil har funktioner
+h fil har prototype på funktioner, konstanter og structs
+main kan kalde funktionerne 
+
+
+
+###### Datatyper i C ######
+Grundlæggende primære datatyper
+Type		Beskrivelse			Eksempel
+int		Heltal				int a = 5;
+float		Flydende decimaltal		float f = 3.14;
+double		Dobbelt præcision decimaltal	double d = 3.14159;
+char		Ét tegn				char c = 'A';
+bool		Sand/falsk			bool b = true;
+
+Tip: 
+int kan være short, long, long long
+float og double er til decimaler
+char kan også bruges til små tal (ASCII)
+
+Modificerede heltalstyper
+Modifier	Eksempel	Bemærkning
+signed int	signed int a;	Standard int
+unsigned int	unsigned int b;	Kun positive tal, dobbel rækkevidde
+short int	short int c;	Mindre talområde
+long int	long int d;	Større talområde
+
+
+
+###### Pointers/pointere ######
+Hvis en funktion skal ændre data → brug pointer
+Hvis en funktion kun skal læse data → brug ikke pointer
+
+pointer: brug IKKE free
+malloc: huskat bruge free
+
+Indeholder adressen til en variabel
+int a = 10;
+int* p = &a;
+*p = 20; // a ændres
+
+Meget vigtigt i Low Level C
+Bruges til arrays, structs, dynamisk hukommelse
+
+Pointers er en operator
+Pointers følger adressen
+* 
+Typen for en pointer til en int er int*
+
+&
+& er en operator
+Bruges til at finde en adresse
+* og & kan man sige er modsætninger, * peger på en adresse og & finder en adresse
+
+
+
+
+###### Structs ######
+Samler forskellige typer i én enhed
+Lidt som en klasse i java
+Sætter attributter
+Laves/deklareres i .h-fil
+Bruges i .c-fil (instansiering og manipulation)
+Husk at når man bruger en struct (i c fil) skal man skrive struct foran (medmindre man laver typedef): struct Person navn
+
+Deklaration (i .h-fil):
+struct Person {
+    int id;
+    char name[20];
+    bool isSomething;
+};
+
+Brug (i .c-fil):
+struct Person p1;		//husk der skal stå struct
+p1.id = 1;			//sætter værdien af int-feltet
+strcpy(p1.name, "Mette");	//kopierer string ind i char-arrayet (name)
+p1.isSomething = true;
+
+
+Klassisk struct til noget som har et arrray: 
+(transaction er en struct jeg bare ikke har skrvet ud her)
+struct Account {
+    struct transaction *transactions;	//array
+    int count;				//tæller
+    int max;				//kapacitet
+};
+
+Dynamiske arrays inde i structs bruges meget til “liste-lignende” ting
+Transactions bliver til et array(lignende) når det får allokeret plads i .c-filen.
+struct Account acc;
+acc.max = 10; (skal nok tages som parameter i funktionen)
+acc.count = 0;
+acc.transactions = malloc(acc.max * sizeof(struct Transaction));
+
+
+
+###### Struct pointers ######
+struct pointers er en syntaks til at adressere felterne i en struct, hvis man har en pointer til en struct i stedet for selve struct’en.
+
+En pointer til en struct, altså en variabel der indeholder adressen til structen.
+
+struct Person *p;  // p peger på en Person
+
+Brug -> for at tilgå felter:
+
+p->id = 5;         
+strcpy(p->name, "Anna");
+
+Hvornår bruger man struct pointers?
+- Når structen er på heapen (malloc) → lever videre efter funktion return.
+- Når du vil ændre en struct i en funktion uden at kopiere den.
+- Når structen indeholder dynamiske arrays eller store data.
+
+void changeName(struct Person *p, char *newName) {
+    strcpy(p->name, newName);  // ændrer structen i main
+}
+
+struct Person p1;
+strcpy(p1.name, "Mette");
+changeName(&p1, "Peter");    // passer pointer til funktionen
+
+- Pointer (*) bruges her, så funktionen kan ændre den originale struct.
+- Hvis vi brugte struct Person p uden pointer, ændringer påvirkede kun kopien.
+
+Huske-regler
+- Pointer til struct → brug ->
+- Almindelig struct → brug .
+- Returnér pointer, når structen er dynamisk eller stor
+- Send pointer til funktion, når du vil ændre structen direkte
+- Fri heap-memory med free for dynamiske structs
+
+
+
+###### Arrow operator (. vs ->) #######
+punktum binder stærkere end stjernen, så kan man bruge arrow operator
+Dvs:
+color_ptr->r er det samme som (*color_ptr).r
+
+
+struct person_t person; 	// Stack-allokeret struct
+struct person_t *ptr;		// Pointer til struct
+
+person.age = 30; 		// Brug . når du har struct direkte
+ptr->age = 30; 			// Brug -> når du har pointer til struct
+
+
+
+###### malloc og free() ######
+malloc allokerer hukommelse dynamisk på heap og returnerer en pointer. free frigiver hukommelsen igen. Manglende free giver hukommelseslæk.
+
+malloc bruges til dynamisk allokering af hukommelse på heap.int* wat = malloc(sizeof(int));
+printf("wat har adressen %d\n", wat) //skal egentlig bruge %p men så får man hexadecimal
+free(wat)
+
+int* p = malloc(sizeof(int));
+
+Husk at tjekke for NULL før brug.
+
+free bruges til at frigive hukommelsen igen.
+Efter free må pointeren ikke bruges længere.
+
+
+
+###### Arrays #######
+Samling af elementer af samme type
+Typisk brug:
+Kendt, fast størrelse
+Midlertidige dat
+
+Deklaration:
+int a[5];
+int b[5] = {1, 2, 3, 4, 5};
+
+Adgang til elementer:
+a[0] = 10;     // første element
+int x = a[3]; // fjerde element
+Indeks starter ved 0 og går til size-1
+
+Loope over array
+for (int i = 0; i < 5; i++) {
+    printf("%d\n", a[i]);
+}
+
+gets() indlæser:
+Læser en linje tekst fra tastaturet (stdin) og gemmer den i et char-array.
+gets er usikker fordi gets tjekker ikke størrelsen på arrayet.
+Hvis brugeren indtaster mere tekst end der er plads til, får du buffer overflow → meget farligt. 
+
+puts() skriver ud:
+int main()
+{
+    // using puts to print hello world
+    char* str1 = "Hello Geeks";
+    puts(str1);
+
+    puts("Welcome Geeks");
+
+    return 0;
+}
+
+Output:
+Hello Geeks
+Welcome Geeks
+
+
+
+###### Dynamisk array ######
+Når man bruges en pointer til at lave noget som fungerer som et array 
+
+Deklaration:
+//En pointer til int (som ikke peger nogen stedet endnu):
+int *tal	
+
+Allokering:
+//Giver pointeren en adresse til sammenhængende hukommelse, bruges som array
+int *tal = malloc(5 * sizeof(int));
+
+Adgang til elementer:
+a[0] = 10;     // første element
+int x = a[3]; // fjerde element
+Indeks starter ved 0 og går til size-1
+
+Loop:
+for (int i = 0; i < 5; i++) {
+    printf("%d\n", a[i]);
+}
+
+
+
+###### Enum ######
+enum (enumeration) bruges til at definere et sæt navngivne heltalskonstanter.
+Enums er smarte integers. Man kan fx bruge dem til statuskoder.
+C tildeler automatisk værdier (heltal), startende fra 0 medmindre man selv tildeler.
+
+Ugedage:
+enum Ugedag {
+    MANDAG,
+    TIRSDAG,
+    ONSDAG,
+    TORSDAG,
+    FREDAG,
+    LØRDAG,
+    SØNDAG
+};
+
+Her gælder:
+MANDAG = 0
+TIRSDAG = 1
+ONSDAG = 2
+osv.
+
+Fejlkoder:
+enum FejlKode {
+    OK = 0,
+    FIL_IKKE_FUNDET = 404,
+    ADGANG_NÆGTET = 403
+};
+
+bruges sådan:
+enum FejlKode fejl = FIL_IKKE_FUNDET; 
+som i praksis betyder at fejl har værdien 404 //fejl == 404
+
+
+
+
+###### Strings i C ######
+I C er en string et array af chars, altid nul-termineret (\0).
+char s[10] = "Hej";  // array af 10 chars, s[3] = '\0'
+
+Strings kan også håndteres som pointer til char:
+char *s = "Hej";  // peger på konstant string i read-only memory
+
+Dynamiske strings
+Alloker på heapen med malloc og kopier:
+char *s = malloc(20 * sizeof(char));
+strcpy(s, "Hej");
+free(s);  // husk altid at frigøre
+
+- Bruges, når du ikke kender længden på forhånd, eller du vil have strengen til at leve efter funktionen returnerer
+- Typisk i structs eller dynamiske arrays af strings:
+
+Fra undervisning:
+I C slutter en streng når der kommer en null-byte
+Strenge har en null-byte til sidst, som i C bruges til at sige nu er strengen slut (tror jeg)
+Så fx strengen "Simon" har 6 og ikke 5
+Strings i C
+char * betyder string, det er fordi der ikke rgitigt er strings i C
+så man skrive fx
+char *first_name;
+
+
+
+###### String funktioner #######
+strlen(s)
+returnerer længden af string s (antal karakterer før null-terminator)
+
+strcpy(target, source)
+Kopierer string
+kopierer hele string source til target (inklusiv '\0')
+
+strncpy(target, source, len)
+kopierer maksimalt len tegn fra source til target
+
+strdup(source), strndup(source, len)
+Allokerer ny kopi på heap/allokerer og kopierer source til heap’en
+
+strcmp(s0, s1) 
+sammenligner to strings leksikografisk, returnerer 0 hvis ens
+
+
+
+###### Loops i C: #######
+Hvis der er et array → for
+Hvis du leder efter noget → while
+Hvis noget skal ske mindst én gang → do-while
+
+
+
+####### For loops: #######
+Sum af elementer:
+int sum = 0;
+for (int i = 0; i < n; i++) {
+    sum += a[i];
+}
+
+
+Finde max:
+int max = a[0];
+for (int i = 1; i < n; i++) {
+    if (a[i] > max) {
+        max = a[i];
+    }
+}
+
+
+
+###### While loops ######
+Bruges når du ikke ved på forhånd, hvor mange gange
+Typiske brug:
+- Læse input indtil stop-betingelse
+- Søge i array indtil fundet
+
+int i = 0;
+while (i < n) {
+    printf("%d\n", a[i]);
+    i++;
+}
+
+
+
+###### If statements #######
+Betingelsen skal være en expression, der evalueres til sand (true) eller falsk (false)
+I C betyder 0 = false, alt andet = true
+if = beslutning
+else if = flere muligheder
+else = alt andet
+
+Grundlæggende syntaks:
+if (betingelse) {
+    // kode udføres hvis betingelsen er sand
+}
+
+If-else:
+if (a > b) {
+    printf("a er større\n");
+} else {
+    printf("a er mindre eller lig b\n");
+}
+
+Else if:
+if (a > b) {
+    printf("a > b\n");
+} else if (a < b) {
+    printf("a < b\n");
+} else {
+    printf("a == b\n");
+}
+
+Logiske operatorer
+&& = logisk OG
+|| = logisk ELLER
+! = logisk IKKE
+
+
+
+###### printf / main #######
+Husk at oprette hvad der skal oprettes fx en konto
+struct account *acc = create_account(10);
+Og at tjekke for fejl fx findes der en konto? if (accc == NULL)
+
+%s til strings
+%d til små tal
+%llu til større (unsigned) tal
+
+%p printer adresser i hexadecimal, men man kan bruge %d hvis man vil undgå hexadecimal
+
+
+Eksempel:
+printf("Beskrivelse af varen: %s\nVaren koster %d kr.\n", a, b);
+
+main returnerer int: Når man kører et program vil man gerne vide om det gik godt. 0 betyder succes. 1 betyder noget gik galt.
+
+Hvis man skal printe en bool:
+printf("%s\n", (student1.isFullTime) ? "Yes" : "No");
+
+
+
+
+
