@@ -5,8 +5,10 @@ Husk når jeg koder:
 - if statements i funktioner til at tjekke
 - .h-fil skal have funktionerne (h-filer bliver brugt til at dele konstanter, makroer, funktioner og datatyper på tværs af .c-filer)
 - i main: oprette fx account navn = create_account
-- free
+- free() når malloc bruges
+- malloc tjekke for if NULL 
 - at #define findes (makroer) laves i h fil
+- printf: %s strings, %d små tal
 
 
 
@@ -186,6 +188,25 @@ Efter free må pointeren ikke bruges længere.
 pointer: brug IKKE nødvendigvis free
 malloc: huskat bruge free
 
+-- Allokering af én enkelt variabel --
+malloc(sizeof(type));
+int *p = malloc(sizeof(int));				//int
+struct account *acc = malloc(sizeof(struct account));	//struct
+
+-- Allokering af array --
+malloc(pladser_i_array * sizeof(type));
+int *arr = malloc(n * sizeof(int));
+struct transaction *transactions = malloc(n * sizeof(struct transaction));
+
+-- NULL-tjek ved malloc: --
+if (!p) {
+    // håndter fejlen, fx return NULL
+}
+
+-- Frigive hukommelsen: --
+free(p);
+p = NULL;  // god praksis
+
 
 
 ###### Arrays #######
@@ -201,6 +222,10 @@ int b[5] = {1, 2, 3, 4, 5};
 Adgang til elementer:
 a[0] = 10;     // første element
 int x = a[3];  // fjerde element
+eller fx
+a[account->count] = 10;
+a[i]
+
 Indeks starter ved 0 og går til size-1
 
 Loope over array
@@ -245,6 +270,9 @@ int *tal = malloc(5 * sizeof(int));
 Adgang til elementer:
 a[0] = 10;     // første element
 int x = a[3]; // fjerde element
+eller fx
+a[account->count] = 10;
+a[i]
 Indeks starter ved 0 og går til size-1
 
 Loop:
