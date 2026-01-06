@@ -1,0 +1,921 @@
+LOW LEVEL C - TEORISK EKSAMEN NOTER
+
+Emner 
+- bitvise-operatorer
+- linking-build-process
+- makroer-faldgruber
+- malloc-memory-management
+- stack-frames 
+- tagged-unions
+- thread-create-join 
+- twos-complement
+- void-pointere
+
+______________________________________________________________________________
+
+*** bitvise-operatorer ***
+
+Bitvise operatorer arbejder direkte på den binære repræsentation af et tal.
+
+& (bitwise AND) i C tager to tal som operander og udfører AND på hvert bit af de to tal. Resultatet af AND er 1 kun, hvis begge bits er 1.
+& er AND: 1 kun hvis begge bits er 1 (behold en bit/test en bit)
+
+| (bitwise OR) i C tager to tal som operander og udfører OR på hvert bit af de to tal. Resultatet af OR er 1, hvis mindst én af de to bits er 1.
+| er OR: 1 hvis mindst én bit er 1 (sæt en bit)
+
+^ (bitwise XOR) i C tager to tal som operander og udfører XOR på hvert bit af de to tal. Resultatet af XOR er 1, hvis de to bits er forskellige.
+^ er XOR: 1 hvis bits er forskellige
+
+<< (left shift) i C tager to tal: det første tal flyttes til venstre med det antal pladser, som det andet tal angiver.
+<< r venstreflyt: flytter bits til venstre
+
+
+>> (right shift) i C tager to tal: det første tal flyttes til højre med det antal pladser, som det andet tal angiver.
+>> er højreflyt: flytter bits til højre
+
+~ (bitwise NOT) i C tager ét tal og inverterer alle dets bits.
+~ er NOT: inverterer alle bits
+
+
+---- KODENS FORMÅL ----
+Koden demonstrerer brugen af bitvise operatorer til at arbejde med Unix-lignende filrettigheder (read, write, execute) for user, group og others.
+Den viser:
+- Hvordan man repræsenterer flag som bits
+- Hvordan man sætter, fjerner og tester bits
+- Hvorfor bitvise operationer er effektive i low-level C
+
+---- Bitvise operatorer i spil i koden ----
+| (OR): tænder en bit (1 hvis mindst én bit er 1)
+& (AND): tester (1 kun hvis begge bits er 1 (behold en bit/test en bit))
+~ (NOT): inverterer bits
+<< (left shift): flytter bits til højere betydning
+
+
+---- KODEN ----
+Filrettighederne er repræsenteret med 3 bits pr. gruppe, hvor 4 = read, 2 = write og 1 = execute, og man lægger dem sammen for at angive hvilke rettigheder hver gruppe har, fx 7 = 4+2+1 betyder fuld adgang.
+
+| Kombination | Bits | Decimal | 
+| ----------- | ---- | ------- | 
+| rwx         | 111  | 7       | 
+| r-x         | 101  | 5       | 
+| rw-         | 110  | 6       |
+| r--         | 100  | 4       | 
+| --x         | 001  | 1       | 
+
+
+Bit-position: (bruges til SHIFT)
+8 7 6 | 5 4 3 | 2 1 0
+------|-------|------
+USER  | GROUP | OTHER
+
+//PERMS: Grund-rettigheder (hvad må man?)
+//Beskriver hvilken rettighed, men ikke hvem den gælder for.
+//kan bruges til både user, group og others
+#define PERM_READ   4   // 100
+#define PERM_WRITE  2   // 010
+#define PERM_EXEC   1   // 001
+
+//SHIFT (hvem gælder det for?)
+//beskriver hvor i bitfeltet rettigheden skal placeres.
+//SHIFT = “hvilken gruppe gælder det for?”
+//bruges til at flytte rettigheds-bits til det korrekte 3-bit-felt, se bit-positions tabel
+//SHIFT-makroerne bruges til at flytte rettigheds-bits til det korrekte 3-bit-felt, så samme read/write/execute-værdi kan genbruges for user, group og other uden overlap.
+#define USER_SHIFT  6
+#define GROUP_SHIFT 3
+#define OTHER_SHIFT 0
+
+//bitmasker
+#define USER_READ   (PERM_READ << USER_SHIFT)   // 0b100'000'000
+#define GROUP_WRITE (PERM_WRITE << GROUP_SHIFT) // 0b000'010'000
+#define OTHER_EXEC  (PERM_EXEC << OTHER_SHIFT)  // 0b000'000'001
+
+//Main
+I main bruges bitvise operatorer sammen med bitmaskerne til at ændre rettigheder:
+| → tilføje rettighed
+& ~ → fjerne rettighed
+& → teste rettighed
+
+---- Flag-systemer ----
+Hvad er “flags” her?
+I denne kode arbejder vi med filrettigheder, og de er opdelt i 9 bits:
+USER   | GROUP | OTHER
+R W X  | R W X | R W X
+
+Hver bit repræsenterer et “flag” (en ja/nej-tilstand).
+1 = flagget er sat (rettighed givet)
+0 = flagget er ikke sat (rettighed ikke givet) 
+
+
+______________________________________________________________________________
+
+*** linking-build-process ***
+se side 57 i kompendium
+Linking er processen, hvor compilerens output (objektfiler .o) samles til én eksekverbar fil.
+Under linking matcher linker symbolske referencer i koden (fx hello()) med de faktiske adresser i hukommelsen.
+
+Samlet flow:
+Preprocessing: #include og #define behandles. Include guards er en preprocessor-teknik
+Compilation: .c → .o (maskinkode, uden fuld linking)
+Linking: .o → executable, symboler erstattes med adresser.
+Execution: main() kalder hello(), output vises.
+
+Makro:
+En makro er en symbolsk kode-erstatning, som styres af preprocessor (delen af compileren, der kører før selve kompileringen). Dvs en makro siger: ‘Erstat dette navn med noget andet, før koden kompileres.
+Fx #define PI 3.14159
+
+-------- main.c fil: --------
+main er startpunktet for programmet
+#include "hello.h"
+#include er en preprocessor-direktiv. Den fortæller compileren: "Føj indholdet af filen her, før du kompilerer koden."
+Så her siger koden: "Jeg vil bruge funktioner, der er deklareret i hello.h".
+
+-------- hello.h fil: --------
+hello.h er en header-fil, som sikrer:
+- At funktionen hello() kan bruges i andre filer.
+- At filen kun inkluderes én gang pr. kompilering (via include guards).
+
+#ifndef _HELLO_H
+#ifndef står for "if not defined" (hvis ikke defineret).
+_HELLO_H er et symbol (macro).
+
+Dette betyder: "Hvis _HELLO_H ikke allerede er defineret, så fortsæt med koden herunder."
+Formål: forhindre dobbeltinkludering. Hvis filen hello.h bliver inkluderet flere gange i forskellige filer, undgår man fejl, fordi hello() kun deklareres én gang.
+
+#define _HELLO_H
+Dette definerer makroen _HELLO_H.
+Så næste gang hello.h bliver inkluderet i samme kompileringsproces, vil #ifndef _HELLO_H være falsk, og indholdet springes over.
+Dette mønster kaldes ofte et include guard. 
+
+void hello(void);
+Funktionsdeklaration
+"Der findes en funktion hello, som ikke tager nogen argumenter og ikke returnerer noget. Den er defineret et andet sted."
+
+#endif // _HELLO_H
+Lukker #ifndef-blokken.
+Kommentaren // _HELLO_H er bare for læsbarhed, så man kan se, hvilken #ifndef der lukkes.
+
+
+-------- hello.c fil: --------
+#include <stdio.h>
+Standardbibliotek som indeholder funktioner til input/output, fx printf.
+Gør at compileren kender til printf
+
+#include "hello.h"
+Gør at headerfilen hello.h er inkluderet
+Sikrer at deklarationen void hello(void); matcher med definitionen her.
+På den måde kan compileren tjekke, at signaturen stemmer overens mellem header og implementering.
+
+void hello(void) { ... }
+Definitionen af funktionen
+Dvs. selve koden, der kører, når man kalder hello().
+void: returnerer ingenting og tager ingen argumenter
+
+printf("Hello, World!\n");
+printer strengen hello world og linjeskift
+
+-------- CMakeLists.txt: --------
+CMake er et værktøj til at bygge (compile) projekter i C
+CMake styrer byggeprocessen, så du ikke behøver at skrive lange compiler-kommandoer manuelt.
+add_executable fortæller, hvilke .c-filer der skal samles til et program.
+
+cmake_minimum_required(VERSION 4.0)
+Skal bruge Cmake 4.0 eller nyere
+Formål: undgå fejl
+
+project(hello C)
+Dette opretter et projekt med navnet hello.
+C betyder det er C og ikke C++
+
+add_executable(hello main.c hello.c hello.h)
+add_executable fortæller CMake: “Lav et program med navnet hello.”
+Alle filer listet efter navnet bliver kompileret og linket sammen.
+add_executable fortæller, hvilke .c-filer der skal samles til et program.
+
+
+-------- Output: --------
+gcc og CMake er bare to forskellige værktøjer til at bygge programmet.
+
+Så gcc-metoden bygger programmet manuelt:
+//Så gcc-metoden bygger programmet manuelt.
+$ gcc -c main.c hello.c  				//-c betyder: compile only, don’t link yet
+$ ls -la *.o						//Dette skaber objektfiler (.o) for hver .c-fil:
+-rw-r--r-- 1 simonshine staff 728 Dec 10 15:16 hello.o	//hello.o → kompileret version af hello.c
+-rw-r--r-- 1 simonshine staff 584 Dec 10 15:16 main.o	//main.o → kompileret version af main.c
+$ gcc -o hello main.o hello.o				//gcc linker objektfilerne sammen til én kørbar fil.
+$ ./hello						//Programmet kører og printer Hello, World!
+Hello, World!
+
+CMake + make:
+//Du kørte CMake + make én gang → fik en anden eksekverbar fil build/hello.
+$ mkdir build							//laver mappe build
+$ cd build							//går ind i mappen
+
+$ cmake ..							
+//cmake .. genererer makefiles i build-mappen baseret på CMakeLists.txt.						
+//Herunder bygger CMake objektfiler (main.c.o og hello.c.o) og linker dem til eksekverbar fil hello.
+$ make
+[ 33%] Building C object CMakeFiles/hello.dir/main.c.o
+[ 66%] Building C object CMakeFiles/hello.dir/hello.c.o
+[100%] Linking C executable hello
+[100%] Built target hello
+$ ./hello
+Hello, World!
+
+
+______________________________________________________________________________
+
+*** makroer-faldgruber ***
+En makro er en måde at definere tekst-substitutioner, der sker før kompileringen begynder.
+Præprocessoren erstatter alle forekomster af makro med den definerede tekst.
+
+Makroer har ingen type-information - de er bare tekst-erstatninger.
+Makro skrives normalt med STORE_BOGSTAVER for at skelne dem fra variable og funktioner.
+Makroer kan være simple konstante substitutioner (#define PI 3.14) eller funktionsmakroer (#define SQUARE(x) ((x)*(x))).
+
+Faldgrupper:
+Multiple evaluation pga side-effects: 
+Argumenter kan blive evalueret flere gange, hvilket kan give uventede side effects. F.eks. i++ eller funktioner som next_value().
+Side-effects: next_value, ++, noget som tæller
+
+Operator-præcedens: 
+Parenteser
+Hvis man ikke bruger parenteser korrekt, kan udtrykket evalueres på en måde, man ikke forventer.
+Parenteser sikrer korrekt operator-præcedens.
+Husk at sætte en masse parenteser. Hvis man definerer dem uden ekstra parenteserne risikerer man at sætte noget forkert sammen. 
+
+Analyse af koden:
+SQUARE-makroer
+#define SQUARE_BAD(x) x * x
+#define SQUARE_GOOD(x) ((x) * (x))
+
+Operator-præcedens: (3+2)
+I C har * højere prioritet end +.
+
+SQUARE_BAD
+SQUARE_BAD(3 + 2) bliver til 3 + 2 * 3 + 2
+3 + (2*3) + 2
+= 3 + 6 + 2
+= 11
+Forventet resultat: 25 (fordi (3+2)² = 25)
+
+SQUARE_GOOD
+SQUARE_GOOD(3 + 2) bliver til ((3 + 2) * (3 + 2)) = 25
+Parenteserne fikser præcedensproblemet.
+
+Multiple evaluation: (i++ og j/j++)
+SQUARE_BAD:
+Eksempel fra koden:  
+int i = 5;
+SQUARE_BAD(i++)
+
+Substitution: SQUARE_BAD(i++) bliver i++ * i++
+
+Hvad sker der?
+i++ har et side effect: den øger i
+
+Fordi x bruges to gange, sker side effect to gange
+
+Trin:
+Første i++ → bruger 5, i bliver 6
+Anden i++ → bruger 6, i bliver 7
+Resultat: 5 * 6 = 30
+Counter = 7
+
+SQUARE_GOOD:
+int j = 5;
+j++;
+int result2 = SQUARE_GOOD(j);
+
+((j) * (j)) bliver til 6 * 6 = 36
+
+j++ sker før makroen → j bliver 6
+Makroen får argumentet j, som ikke har side effects
+j bruges to gange, men uden problemer fordi den ikke tæller op to gange
+Virker fordi side effect (j++) er adskilt fra makroen.
+
+
+MIN-makroer
+#define MIN_BAD(a, b) a < b ? a : b 
+#define MIN_GOOD(a, b) ((a) < (b) ? (a) : (b))
+//Hvis a < b er sandt, så brug a, ellers brug b.
+//dvs vi bruger next_value() som argument i en funktionsmakro (next_value har side-effect)
+
+Operator-præcedens:
+Eksempel:
+MIN_BAD(5, next_value()) 
+“MIN_GOOD bruger parenteser til at sikre korrekt operator-præcedens, mens MIN_BAD kan give uventede resultater i større udtryk. Parenteserne forbedrer læsbarhed og korrekthed, men løser ikke problemet med side effects.”
+
+Multiple evaluation:
+Problem pga side-effect
+Eksempel:
+counter = 0;
+int value1 = MIN_BAD(5, next_value());
+
+Substitution: 5 < next_value() ? 5 : next_value()
+
+Betingelsen (5 < next_value()) køres kun én gang
+Den bliver false, fordi next_value() returnerer 1
+Derfor vælges b, som er next_value()
+Og derfor kaldes next_value() igen
+Resultat:
+counter bliver 2
+selvom selve sammenligningen kun blev udført én gang
+
+Samme problem sker med MIN_GOOD, fordi makroer altid kan evaluere funktioner flere gange.
+Side effects i makroargumenter kan føre til uforudsigelige resultater. Parenteser hjælper kun på præcedens, ikke multiple evaluation.
+
+
+
+______________________________________________________________________________
+
+*** malloc-memory-management ***
+Malloc og memory management
+Hvor data gemmes (stak/heap)
+- stak: bruges til lokale variable 
+- heap'en bruges til dynamisk allokering med malloc() og kræver free()
+- Skal undgå memory leaks med free()
+
+---- KODE ----
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct person_t {
+    char *name;			//name er en pointer til dynamisk allokeret hukommelse (heap).
+    int age;			//en alm int
+    struct person_t *next;	//next peger på næste person_t i en linked list.
+				//next er en pointer til en struct
+};
+
+struct person_t *create_person(char *name, int age) {	//Funktionen returnerer en pointer til en struct
+    if (name == NULL) {
+        return NULL;
+    }
+
+    struct person_t *person = malloc(sizeof(struct person_t));	//Allokerer memory til selve structen med malloc
+    if (person == NULL) {					////hvis malloc fejler
+        return NULL;
+    }
+
+    person->name = malloc(strlen(name) + 1);	//Allokerer memory til name (+ 1 for at inkludere '\0')
+    if (person->name == NULL) {			//hvis malloc fejler
+        free(person);
+        return NULL;
+    }
+
+    strcpy(person->name, name);		//Kopierer stringen ind i person->name med strcpy.
+    person->age = age;			//Initialiserer age
+    person->next = NULL;		//Initialiserer next
+
+    return person;			//Returnerer pointer til heap-allokeret struct.
+}	
+
+void free_person(struct person_t *person) {
+    if (person != NULL) {			//Tjekker først om person er NULL → forhindrer crash.
+        if (person->name != NULL) {				
+            free(person->name);			//Frigiver person->name først, da det er en separat malloc
+            person->name = NULL;
+        }
+        free(person);				//Frigiver structen (person)
+    }
+}
+
+void free_all_persons(struct person_t *person) {
+    while (person != NULL) {				//Går igennem linked list og frigiver alle personer.
+        struct person_t *next = person->next;		//Gemmer next før free = adgangen til resten af listen.
+        free_person(person);
+        person = next;
+    }
+}
+
+int main() {
+    struct person_t *person1 = create_person("Alice", 28);	//Fire personer oprettes på heap.
+    struct person_t *person2 = create_person("Bob", 32);
+    struct person_t *person3 = create_person("Charlie", 25);
+    struct person_t *person4 = create_person("David", 30);
+    person1->next = person2;					//Linked list forbindes via next.
+    person2->next = person3;
+    person3->next = person4;
+
+    free_person(person4);		//person 4 frigives
+    free_all_persons(person1);		//alle i den linkede liste frigives
+
+	//Evt problem at person4 frigives flere gange? Løsning person3->next = NULL;
+
+    return 0;
+}
+
+______________________________________________________________________________
+
+*** stack-frames ***
+Assembler-kode:
+assemblerkode (assembly language):
+Koden stammer fra C (hello.c) men er blevet kompileret til assembly af gcc.
+Assembly er lav-niveau sprog tæt på maskinkode, men stadig læsbart for mennesker.
+
+Stack Frames og Funktionkald – Grundidé:
+Når en funktion kaldes:
+1. Opretter CPU’en en “stack frame” på stakken.
+	Dette er et isoleret område til lokale variable, parametre og gemte registre.
+2. Gemmes link-register (returadresse) og frame pointer.
+	Link register (x30 på ARM64) holder adressen, som funktionen skal returnere til.
+	Frame pointer (x29) bruges som referencepunkt for lokale variable og gemte værdier.
+3. Funktionen udfører sit arbejde.
+4. Ved return gendannes gemte registre, og stakken ryddes op (stak-pointer sp justeres tilbage).
+Det betyder: hver funktion får sit eget område, og du kan spore variabler og parametre med offsets fra frame pointer.
+
+
+| Navn          | Funktion                      | Analog                          |
+| ------------- | ----------------------------- | ------------------------------- |
+| Stack         | Midlertidig hukommelse        | Kassebunke                      |
+| Link Register | Returneringsadresse           | GPS tilbage                     |
+| STP           | Gem to registre på stacken    | Læg to bøger i bunke på én gang |
+| Frame Pointer | Referencepunkt i stack frame  | Bunden af din kassebunke        |
+| Stack Pointer | Pointer til toppen af stakken | Hvor toppen af bunken er nu     |
+
+
+Stak / stack:
+Et område i hukommelsen, hvor computerprogrammer midlertidigt gemmer data som lokale variable og funktionernes returadresser.
+Tænk på det som en “kassebunke” – det sidste, du lægger på, er det første, du tager af (“Last In, First Out”).
+Hver funktion får sin egen del af stakken, kaldet en stack frame.
+Når funktionen returnerer, fjernes dens frame automatisk.
+
+Link register:
+Et specielt register, der gemmer adressen, hvor programmet skal fortsætte, når en funktion er færdig.
+Tænk på det som “GPS’en til, hvor vi skal tilbage til efter funktionskald”.
+
+STP:
+(Store Pair)
+En assembler-instruktion, der gemmer to registre på stakken samtidig.
+Fx: stp x29, x30, [sp, #16] → gem frame pointer og link register på stakken.
+
+Frame pointer:
+Et register, der peger på starten af den nuværende stack frame.
+Hjælper med at finde lokale variable og gemte registre i funktionen.
+
+Stak pointer:
+Et register, der peger på toppen af stakken – hvor næste værdier kan lægges eller tages fra.
+Når vi reserverer plads til lokale variable, flytter vi SP ned, og når vi rydder op, flytter vi SP tilbage.
+
+
+---- KODEN ----
+gcc -c hello.c && objdump -d hello.o  
+//assemblerkode (assembly language):
+//Koden stammer fra C (hello.c) men er blevet kompileret til assembly af gcc.
+//Assembly er lav-niveau sprog tæt på maskinkode, men stadig læsbart for mennesker.
+
+Hver linje svarer næsten til en maskinkodeinstruktion (fx d10083ff er maskinkoden bag sub sp, sp, #32).
+Hvad sker der trin-for-trin:
+1. Prologue (opsætning af stack frame):
+- sub sp, sp, #32 → reserver plads: 16 bytes til registre, 16 bytes til lokale variable.
+- stp x29, x30, [sp, #16] → gem frame pointer og link register.
+- add x29, sp, #16 → sæt frame pointer som referencepunkt.
+2. Lokale variable:
+- stur wzr, [x29, #-4] → forks_given = 0 (lagres ved frame_pointer - 4).
+3. Funktionens arbejde:
+- adrp og add → få adressen af strengen "Hello, World!".
+- bl printf → kald printf, return-adresse gemmes i x30.
+4. Epilogue (ryd op):
+- ldp x29, x30, [sp, #16] → gendan frame pointer og link register.
+- add sp, sp, #32 → frigør stack plads.
+- ret → returner til kaldende funktion.
+Konklusion:
+Dette viser et typisk ARM64 stack frame: gemme registre, reservere plads til lokale variable, kalde funktioner og rydde op igen.
+
+
+World.c og Variabeladresser:
+Hvad dette viser:
+1. main()’s foo ligger et sted på stakken: 0x16d8debd8.
+2. Når world(foo, &foo) kaldes:
+- foo (parameter) kopieres ind i world()’s stack frame: 0x16d8debac (en ny adresse). 
+	Det viser, at værdiparametre kopieres, de peger ikke på den originale variabel.
+- foop (pointer) peger stadig på main()’s foo: 0x16d8debd8.
+	Ændringer via pointer vil ændre main()’s variabel.
+
+Vigtigt koncept:
+- Værdiparametre → kopi på stacken
+- Pointers → peger på originalen
+
+______________________________________________________________________________
+
+*** tagged-unions ***
+
+En union ligner en struct, men med en vigtig forskel: alle medlemmer deler den samme hukommelsesplads. Det betyder at du kun kan bruge ét medlem ad gangen.
+
+union value_t {
+	int as_int; 	// ville fylde 4 bytes
+	float as_float; // ville fylde 4 bytes
+	char as_char; 	// ville fylde 1 byte
+};
+
+En union tager kun så meget plads som det største medlem.
+Unions er nyttige når du vil spare hukommelse og ved at du kun skal bruge ét af flere mulige datatyper ad gangen.
+Unions har en stor svaghed: der er ingen måde at vide hvilket medlem der er gyldigt!
+Debugging-mareridt: Fejl er svære at finde fordi de ikke altid sker med det samme
+Unions: 
+- Hvorfor er det smart: sparer plads
+- Hvad skal man passe på med: Man kan ikke se hvilket medlem der er gyldigt
+
+Tagged unions (diskriminerede unions)
+Løsningen: En tagged union kombinerer:
+- En enum, som fungerer som et "tag", der fortæller, hvilken type der er aktiv.
+- En union, der indeholder de mulige datatyper.
+
+
+---- KODEN ----
+Noter til koden:
+Tagged union = union + enum tag
+Union deler hukommelse mellem forskellige typer, sparer plads
+Enum fortæller programmet, hvilken type data der er aktiv
+Konstruktion via funktioner (create_fire_pokemon, create_electric_pokemon)
+Print-funktion bruger tag til at vælge det rigtige felt
+
+create_* funktionerne sætter tagget.
+print_pokemon_info bruger tagget til at vælge den rigtige del af unionen.
+
+Så du kan tænke på det som to trin:
+Skriv tagget når du opretter Pokémon.
+Læs tagget når du vil bruge dataen.
+
+Koden med kommentarer:
+#include <stdio.h>   // Standard input/output bibliotek, bruges til printf
+#include <string.h>  // String-funktioner som strncpy
+
+// Enum for temperatur-enheder
+enum temperature_unit { KELVIN, CELSIUS, FAHRENHEIT };
+
+// Enum for Pokémon-typer (tag for unionen)
+enum pokemon_type { FIRE, ELECTRIC };
+
+// Struct for ild-Pokémon
+struct fire_pokemon { 
+    float temperature;                 // Temperaturfelt
+    enum temperature_unit unit;        // Enhed for temperaturen
+};
+
+// Struct for elektrisk Pokémon
+struct electric_pokemon { 
+    float voltage;                     // Spænding i volt
+    float amps;                        // Strømstyrke i ampere
+};
+
+// Tagged union: Pokémon struct
+struct pokemon {
+    enum pokemon_type type;            // Tag, fortæller hvilken union-del der er aktiv
+    char name[30];                     // Navn på Pokémon
+    union {                            // Union med forskellig egenskaber
+        struct fire_pokemon fire;      // Hvis type == FIRE
+        struct electric_pokemon electric; // Hvis type == ELECTRIC
+    } props;                           // Navn på unionen
+};
+
+// Funktion til at oprette en ild-Pokémon
+struct pokemon create_fire_pokemon(const char *name, float temperature, enum temperature_unit unit) {
+    struct pokemon pokemon;            // Lav en ny Pokémon struct
+    pokemon.type = FIRE;               // Sæt tagget til FIRE
+    strncpy(pokemon.name, name, 29);   // Kopiér navnet sikkert (maks 29 tegn)
+    pokemon.name[29] = '\0';           // Sørg for at stringen er nul-termineret
+    pokemon.props.fire.temperature = temperature; // Sæt temperatur
+    pokemon.props.fire.unit = unit;    // Sæt temperatur-enhed
+    return pokemon;                    // Returner structen
+}
+
+// Funktion til at oprette en elektrisk Pokémon
+struct pokemon create_electric_pokemon(const char *name, float voltage, float amps) {
+    struct pokemon pokemon;            // Lav en ny Pokémon struct
+    pokemon.type = ELECTRIC;           // Sæt tagget til ELECTRIC
+    strncpy(pokemon.name, name, 29);   // Kopiér navnet sikkert
+    pokemon.name[29] = '\0';           // Sørg for at stringen er nul-termineret
+    pokemon.props.electric.voltage = voltage; // Sæt spænding
+    pokemon.props.electric.amps = amps;      // Sæt strømstyrke
+    return pokemon;                    // Returner structen
+}
+
+// Funktion til at få navnet på en temperatur-enhed som string
+const char* get_temperature_unit_name(enum temperature_unit unit) {
+    switch (unit) {
+        case KELVIN: return "°K";     // Hvis KELVIN, returnér °K
+        case CELSIUS: return "°C";    // Hvis CELSIUS, returnér °C
+        case FAHRENHEIT: return "°F"; // Hvis FAHRENHEIT, returnér °F
+        default: return "";            // Default fallback
+    }
+}
+
+// Funktion til at printe info om en Pokémon
+void print_pokemon_info(struct pokemon pokemon) {
+    switch (pokemon.type) {             // Brug tagget til at vælge union-del
+        case FIRE:                      // Hvis Pokémon er ild-type
+            printf("Pokemon: %s (fire)\n  Temperature: %.1f%s\n",
+                pokemon.name,                        // Navn
+                pokemon.props.fire.temperature,      // Temperatur fra union
+                get_temperature_unit_name(pokemon.props.fire.unit)); // Temperatur-enhed
+            break;
+
+        case ELECTRIC:                  // Hvis Pokémon er elektrisk type
+            printf("Pokemon: %s (electric)\n  Voltage: %.1fV\n  Amps: %.2fA\n",
+                pokemon.name,                        // Navn
+                pokemon.props.electric.voltage,     // Spænding fra union
+                pokemon.props.electric.amps);       // Strømstyrke fra union
+            break;
+    }
+}
+
+// Hovedprogram
+int main() {
+    struct pokemon team[] = {          // Lav et array med Pokémon
+        create_fire_pokemon("Charizard", 1273.0, KELVIN),  // Opret ild-Pokémon
+        create_electric_pokemon("Pikachu", 50000.0, 10.5) // Opret elektrisk Pokémon
+    };
+
+    printf("My Pokemon Team:\n");      // Print overskrift
+    for (int i = 0; i < 2; i++) {     // Loop igennem Pokémon-teamet
+        print_pokemon_info(team[i]);   // Print info for hver Pokémon
+        printf("\n");                  // Ny linje mellem Pokémon
+    }
+
+    // Print størrelser på struct og union
+    printf("Size of each pokemon type struct:\n");
+    printf("  Fire pokemon: %zu bytes\n", sizeof(struct fire_pokemon));       // Størrelse af fire_pokemon
+    printf("  Electric pokemon: %zu bytes\n", sizeof(struct electric_pokemon)); // Størrelse af electric_pokemon
+    printf("Union size (shared memory): %zu bytes\n",
+           sizeof(union { struct fire_pokemon fire;
+                          struct electric_pokemon electric; })); // Størrelse af union
+    printf("Total pokemon struct size: %zu bytes\n", sizeof(struct pokemon)); // Størrelse af hele pokemon struct
+
+    return 0;  // Afslut program
+}
+
+
+______________________________________________________________________________
+
+*** thread-create-join ***
+
+Programmet demonstrerer brugen af POSIX threads (pthreads) og viser et klassisk problem med race conditions.
+- To tråde oprettes (pthread_create)
+- Begge tråde kører funktionen increment_counter
+- Funktionen øger en global variabel counter 100.000 gange
+- Forventet resultat: 200000
+- Faktisk resultat: varierer og er lavere
+- Årsagen er, at counter++ ikke er en atomisk operation, og fordi trådene deler hukommelse, overskriver de hinandens opdateringer.
+
+Hvorfor bliver resultatet forkert? (race condition)
+
+Udtrykket:    counter++;
+
+består i virkeligheden af tre trin:
+1. Læs værdien af counter fra hukommelsen
+2. Læg 1 til
+3. Skriv værdien tilbage
+Fordi counter++ består af flere trin, kan processoren “blande” rækkefølgen, og opdateringer går tabt.
+
+Når to tråde udfører dette samtidig, kan de læse den samme værdi og begge skrive samme nye værdi tilbage:
+- Tråd 1 læser counter = 5
+- Tråd 2 læser counter = 5
+- Tråd 1 skriver 6
+- Tråd 2 skriver også 6
+Derfor: Én inkrementering går tabt! Altså når counteren skulle være fx 2 fordi de begge har talt en op er den kun 1 fordi de gjorde de simultant.
+Der er ingen synkronisering (fx mutex), derfor opstår race condition.
+
+---- Race condition ----
+En race condition opstår, når:
+- To eller flere tråde (eller processer) forsøger at læse og skrive til den samme ressource (fx en variabel) samtidig.
+- Det kan føre til uforudsigelige eller forkerte resultater, fordi trådene “kapløber” om at opdatere værdien.
+
+
+---- Hvorfor bruger thread-funktionen void* ----
+Thread-funktionen bruger void*, fordi C ikke understøtter generics, og pthreads derfor anvender void* til at kunne håndtere argumenter og returværdier af vilkårlig type.
+
+Funktionssignaturen: void* increment_counter(void* arg)
+Forklaring:
+- C har ikke generics
+- void* bruges for at kunne:
+	- Modtage argumenter af vilkårlig type
+	- Returnere værdier af vilkårlig type
+- void* fungerer som en “generic pointer”
+- Det er programmørens ansvar at caste korrekt
+
+Thread-funktioner i pthreads bruger void-pointere fordi: (Fra kompendium)
+- En thread-funktion kun kan tage ét argument
+- Det argument skal kunne være hvilken som helst datatype
+- Thread-funktionen skal kunne returnere hvilken som helst datatype
+- Thread-biblioteket er skrevet uden kendskab til hvilke datastrukturer man gerne vil bruge i forskellige tråde i forskellige applikationer, og da C ikke har Generics ligesom Java, gør man koden generisk ved hjælp af void-pointere.
+
+
+---- Hvorfor skal man joine tråde? ----
+
+Man joiner tråde for at vente på, at de afsluttes, sikre korrekt synkronisering af programmet og undgå resource leaks. Uden join kan main-tråden afslutte før worker-trådene.
+
+pthread_join() gør to vigtige ting:
+1. Den venter på, at tråden er færdig
+Uden join kan:
+- main() afslutte før trådene
+- Programmet stoppe, mens trådene stadig kører
+
+2. Den synkroniserer programmet
+- Sikrer at counter er færdigberegnet, før vi printer
+- Uden join ville resultatet være endnu mere uforudsigeligt
+
+3. Den rydder op i systemressourcer
+- En thread, der ikke joines (eller detaches), efterlader ressourcer
+- Kan føre til resource leaks
+
+Hvad sker der i dette program?
+pthread_join(thread1, NULL);
+pthread_join(thread2, NULL);
+
+- main() venter på begge tråde
+- Først derefter udskrives resultatet
+- Join løser ikke race condition
+- Join sikrer kun korrekt rækkefølge (synchronization, ikke mutual exclusion)
+
+
+
+*******
+Fra undervisning:
+Trådprogrammering: ikke en del af praktisk, spørger ind til når man spåner en tråd står der void* (svaret er noget med at C mangler generics) altså hvorfor bruger man void pointers. Anden ting han spørger til i tråde er hvorfor skal man joine tråde. MAn kan create tråde og man kan joine tråde, hvorfor skal man joine dem.
+
+
+______________________________________________________________________________
+
+*** twos-complement ***
+--- Info ---
+Two's complement er metoden til at repræsentere negative tal i computere. 
+For at lave -x fra x: flip alle bits og læg 1 til. 
+Dette sikrer at normal addition fungerer på negative tal, fx -1 + -1 = -2.
+Hver 0 eller 1 er en bit.
+Systemet:
+Hvis tallet til venstre er 0 = positivt, hvis det er 1 = negativt
+For at ændre det:
+- Flip alle bits (dvs 1 bliver 0 og 0 bliver 1)
+- Læg 1 til helt til højre
+
+
+---- KODE ----
+void print_binary(int num) {
+    for (int i = 7; i >= 0; i--) {
+        printf("%d", (num >> i) & 1);
+    }
+    printf(" (%d)\n", num);
+}
+
+Hvad den gør:
+- For en given num skifter vi bits til højre (num >> i).
+- & 1 isolerer den bit vi vil printe (0 eller 1).
+- Løkken går fra i = 7 til i = 0 → print højeste bit først (MSB til LSB).
+- Til sidst printes også decimalværdien i parentes.
+Dette viser binær repræsentation i 8 bits.
+
+print_binary(-1):
+Her er den sidste bit 0 så den kan bare ændres til 1
+    //  1 == 0000'0001
+    // ~1 == 1111'1110 (flip all bits)
+    // ~1 + 1 == 1111'1110 + 0000'0001
+    //   1111'1110
+    // + 0000'0001
+    // -----------
+    //   1111'1111 = -1
+    print_binary(-1);
+
+
+print_binary(-2):
+    // -1 + -1 addition virker normalt i binær
+    // -1      == 1111'1111
+    // -1      == 1111'1111
+    // -1 + -1 == 1111'1111 + 1111'1111
+    //   1111'1111
+    // + 1111'1111
+    // -----------
+    // 1'1111'1110
+    //  ^- carry overflow (ignoreres for char som er 8 bits)
+    //    1111'1110 = -2
+    print_binary(-2);
+
+Forklaring af addition af -1 + -1:
+  11111111  (-1)
++ 11111111  (-1)
+-----------
+1 11111110
+
+bliver til:
+Bit0: 1 + 1 = 10 (0 med carry 1)
+Bit1: 1 + 1 + carry1 = 11 (1 med carry 1)
+Bit2: 1 + 1 + carry1 = 11 (1 med carry 1)
+...
+Bit7: 1 + 1 + carry1 = 11 (1 med carry 1)
+Efter sidste bit (bit7) har vi stadig en carry = 1, som går “ud over” 8-bit.
+Overflow ignorere i 8-bit
+- I 8-bit system gemmes kun de 8 laveste bits.
+- Carry-bit, der “flyder ud” af bit7, ignoreres.
+- Derfor bliver resultatet: 11111110
+
+
+______________________________________________________________________________
+
+*** void-pointere ***
+En void* er en generisk pointer, dvs. den kan pege på data af enhver type. (en pointer til “ingenting”)
+void betyder “tom” eller “ingen værdi”
+void * er en pointer til hukommelse uden at specificere hvilken type data der er gemt der.
+- Fordi typen er ukendt, kan man ikke direkte læse eller skrive via en void* uden at caste den til den rigtige type først.
+- Bruges ofte, når man vil skrive generisk kode: f.eks. funktioner, der kan arbejde med både int, double eller char*.
+- void-pointere bruges til trådprogrammering
+- Finde fordi man kan ikke i C kan lave en funktion hvor typerne først er kendt senere (altså generics).
+- I dit eksempel bruges void* i generic_swap til at kunne bytte værdier uanset type.
+
+void * er en generisk pointer
+- Den kan pege på hvilken som helst datatype
+- Men: C ved ikke, hvad der ligger på adressen
+- Derfor kan man ikke dereferere en void * direkte
+
+Nøglepointer:
+- void* giver generisk behandling af data.
+- memcpy bruges til at flytte bytes uden at kende typen.
+- malloc + free håndterer midlertidig hukommelse.
+- Swap virker både for primitive typer (int) og pointere (char*).
+- sizeof er vigtig for at vide, hvor mange bytes der skal kopieres.
+
+Casting:
+Casting ændrer ikke data i hukommelsen – kun hvordan compileren fortolker data
+Implicit casting er nok, når du kun flytter rundt på adresser. (analogi: flytte en kasse)
+Explicit casting er nødvendigt, når du vil bruge dataen bag adressen. (analogi: sætte label på kassen så man ved hvad der er i)
+
+Implicit casting:
+int number = 42;
+void *ptr = &number; // Automatisk casting fra int* til void*
+
+Explicit casting:
+void *generic_ptr = &number;
+int *int_ptr = (int*) generic_ptr; // Manuelt casting fra void* til int*
+
+
+---- KODEN ----
+-- generic_swap funktion --
+void generic_swap(void *a, void *b, size_t size) {
+    char *temp = malloc(size);	//Alloker midlertidig buffer (temp). Vi bruger malloc(size) til at reservere size bytes.
+    memcpy(temp, a, size);	//Kopiér data fra a til temp
+    memcpy(a, b, size);		//Kopiér data fra b til a:
+    memcpy(b, temp, size);	//Kopiér midlertidige data til b:
+    free(temp);			//Frigør midlertidig buffer:
+}
+
+noter til generic_swap():
+- void *a og void *b betyder: “Jeg får adresser, men jeg ved ikke, hvilken type de peger på.”
+- void* bruges i generic_swap til at kunne bytte værdier uanset type.
+- Dvs: værdierne, som a og b peger på, er byttet uden at kende deres type.
+
+Swappet ser sådan her ud:
+a -> temp
+b -> a
+temp -> b
+Til sidst frigøres temp
+
+size_t
+size_t er en datatypen til størrelser i C.
+Den bruges altid, når man arbejder med hvor mange bytes noget fylder.
+Dvs. size fortæller, hvor mange bytes vi skal kopiere fra a til b.
+
+memcpy
+Står for: memory copy
+memcpy bruges til at kopiere et blok af hukommelse fra én placering til en anden.
+Ingen typeinformation – den kopierer bare rå bytes.
+(I generic_swap undgår man explicit casting ved at arbejde byte-for-byte med memcpy.)
+
+
+-- number swap --
+    int x = 10, y = 20; 
+    printf("Before swap: x = %d, y = %d\n", x, y);  //output: x = 10, y = 20
+    generic_swap(&x, &y, sizeof(int));
+    printf("After swap: x = %d, y = %d\n", x, y);   //output: x = 20, y = 10
+
+Hvorfor er der &? void * peger på et sted i hukommelsen og de steder i hukommelsen den skal bytte er &x og &y.
+Når vi skriver &x og &y, sender vi adresserne på de variabler, vi vil bytte.
+
+-- string swap --
+    char *s = strdup("Hello");
+    char *t = strdup("World");
+    printf("Before string swap: s = \"%s\", t = \"%s\"\n", s, t); //output: "Hello", t = "World"
+    generic_swap(&s, &t, sizeof(char*));
+    printf("After string swap: s = \"%s\", t = \"%s\"\n", s, t);  //output: "World", t = "Hello"
+
+Strengene flytter sig ikke i hukommelsen; vi bytter kun pointerne om, så s og t peger på hinandens strenge
+Dvs. Vi kopierer kun pointerne, ikke hele strengeindholdet. Det er derfor vi bruger sizeof(char*) – det er størrelsen på pointeren, ikke selve strengen.
+
+    //skal free s og t pga malloc/strdup
+    free(s); 
+    free(t);
+
+-- sizeof(typer) --
+    printf("sizeof(void*): %zu bytes\n", sizeof(void*)); //output: 8 bytes
+    printf("sizeof(int*): %zu bytes\n", sizeof(int*));   //output: 8 bytes
+    printf("sizeof(char*): %zu bytes\n", sizeof(char*)); //output: 8 bytes
+
+Pointe: Alle pointertyper har samme størrelse i bytes uanset hvad de peger på. (Alle tre udskriver 8 bytes)
+Alle tre indeholder bare en adresse derfor fylder de det samme
+
+
+
+______________________________________________________________________________
+
+
+
+
+
